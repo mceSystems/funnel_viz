@@ -1,0 +1,8 @@
+/*
+ * CSS rules for visualization.
+ * Class namespacing is good practice.
+ */
+
+.vizviz-charts-color-picker > div splunk-color-picker {
+  margin-left: 4px;
+}
