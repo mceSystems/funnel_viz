@@ -9,25 +9,21 @@ define(["api/SplunkVisualizationBase", "api/SplunkVisualizationUtils", "echarts"
 ) {
   return SplunkVisualizationBase.extend({
     initialize: function () {
-      this.chunk = 1000;
+      this.chunk = 100;
       this.offset = 0;
       SplunkVisualizationBase.prototype.initialize.apply(this, arguments);
-      this.el.classList.add("vizviz-calendar-container");
+      this.el.classList.add("vizviz-funnel-container");
     },
 
     // @ts-expect-error
     formatData: function (data) {
-      // if (data.fields.length == 0) {
-      //   return data;
-      // }
+      if (data.columns.length == 0) {
+        return data;
+      }
 
-      //// @ts-expect-error
-      // if (!data.fields.some((x) => x.name === "_time")) {
-      //   throw new SplunkVisualizationBase.VisualizationError(
-      //     "Unsupported data format: This visualization needs _time field."
-      //   );
-      // }
-
+      if (data.columns[0].length > 100) {
+        throw new SplunkVisualizationBase.VisualizationError("This visualization supports up to 100 results.");
+      }
       return data;
     },
 
@@ -48,7 +44,7 @@ define(["api/SplunkVisualizationBase", "api/SplunkVisualizationUtils", "echarts"
     getInitialDataParams: function () {
       return {
         outputMode: SplunkVisualizationBase.COLUMN_MAJOR_OUTPUT_MODE,
-        count: 1000,
+        count: 100,
       };
     },
 
@@ -82,8 +78,10 @@ interface SearchResult {
 class Config {
   background: string;
   foreground: string;
-  funnelStyle: "classic" | "alternative";
-  radius: number;
+  funnelType: "classic" | "alternative";
+  funnelAlign: "left" | "center" | "right";
+  labelPosition: "left" | "inside" | "right";
+  itemSize: number;
   #colors = [
     "#2ec7c9",
     "#b6a2de",
@@ -111,18 +109,24 @@ class Config {
   constructor(c: any, mode: string) {
     this.background = mode === "dark" ? "#333" : "#fff";
     this.foreground = mode === "dark" ? "#fff" : "#333";
-    this.funnelStyle = c[`${this.#vizNamespace}.funnelStyle`] === "classic" ? "classic" : "alternative";
-    this.radius = this.validateRadius(c[`${this.#vizNamespace}.radius`]);
+    this.funnelType = c[`${this.#vizNamespace}.funnelType`] === "classic" ? "classic" : "alternative";
+    this.funnelAlign = ["left", "center", "right"].includes(c[`${this.#vizNamespace}.funnelAlign`])
+      ? c[`${this.#vizNamespace}.funnelAlign`]
+      : "left";
+    this.labelPosition = ["left", "inside", "right"].includes(c[`${this.#vizNamespace}.labelPosition`])
+      ? c[`${this.#vizNamespace}.labelPosition`]
+      : "left";
+    this.itemSize = this.validateItemSize(c[`${this.#vizNamespace}.itemSize`]);
     this.colors = c;
   }
 
-  sanitizeItem(s: string): number | "" {
+  sanitizeNumber(s: string): number | "" {
     return !Number.isNaN(parseInt(s)) ? parseInt(s) : "";
   }
 
-  validateRadius(rad: string): number {
-    const d = this.sanitizeItem(rad);
-    return d === "" ? 50 : d;
+  validateItemSize(rad: string): number {
+    const d = this.sanitizeNumber(rad);
+    return d === "" ? 96 : d;
   }
 
   isColor(hex: string) {
@@ -140,23 +144,27 @@ class Config {
       }
     }
   }
+
+  get firstGridLeft() {
+    return this.itemSize / 2 + 48;
+  }
 }
 
-function bar(result: Result) {
+function bar(result: Result, conf: Config) {
   return {
     type: "bar",
-    silent: true,
+    // silent: true,
     zlevel: 1,
     colorBy: "data",
     barCategoryGap: "20%",
-    barWidth: 96,
+    barWidth: conf.itemSize,
     label: {
       position: "insideLeft",
       show: true,
-      align: "left",
+      // align: "left",
       distance: 16,
       verticalAlign: "middle",
-      formatter: "{name|{b}}\n{c}",
+      formatter: "{name|{b}}\n{c}%",
       rich: {
         name: {
           fontWeight: 700,
@@ -183,7 +191,7 @@ function area(result: Result) {
   };
 }
 
-function graph(result: Result, colors: string[]) {
+function graph(result: Result, conf: Config) {
   const links = [];
 
   for (let i = 0; i < result.length - 1; i++) {
@@ -195,8 +203,8 @@ function graph(result: Result, colors: string[]) {
     coordinateSystem: "cartesian2d",
     xAxisIndex: 1,
     yAxisIndex: 1,
-    symbolSize: 96,
-    silent: true,
+    symbolSize: conf.itemSize,
+    // silent: true,
     lineStyle: {
       width: 16,
       color: "#ddd",
@@ -205,38 +213,42 @@ function graph(result: Result, colors: string[]) {
       return {
         value: 0,
         label: { formatter: x, show: true, fontSize: 14, fontWeight: 700 },
-        itemStyle: { color: colors[i % colors.length] },
+        itemStyle: { color: conf.colors[i % conf.colors.length] },
       };
     }),
     links: links,
   };
 }
 
-function option(data: SearchResult, conf: Config) {
-  // const fields = data.fields.map((x) => x.name);
-
+function sharedOption(conf: Config) {
   return {
     toolbox: {
       feature: {
         saveAsImage: {
           backgroundColor: conf.background,
-          name: "calendar-chart",
+          name: "funnel-chart",
         },
       },
     },
     color: conf.colors,
     backgroundColor: "transparent",
+  };
+}
+
+function alternateOption(data: SearchResult, conf: Config) {
+  return {
+    ...sharedOption(conf),
     grid: [
       {
-        left: "96px",
-        right: "32px",
-        bottom: "32px",
+        left: conf.firstGridLeft,
+        right: 32,
+        bottom: 32,
         containLabel: true,
       },
       {
-        left: "32px",
-        right: "32px",
-        bottom: "32px",
+        left: 32,
+        right: 32,
+        bottom: 32,
         containLabel: true,
       },
     ],
@@ -257,15 +269,60 @@ function option(data: SearchResult, conf: Config) {
       {
         type: "category",
         show: false,
+        inverse: true,
         data: data.columns[0],
       },
       {
         type: "category",
         gridIndex: 1,
         show: false,
+        inverse: true,
         data: data.columns[0],
       },
     ],
-    series: [bar(data.columns[1]), area(data.columns[1]), graph(data.columns[2], conf.colors)],
+    series: [bar(data.columns[1], conf), area(data.columns[1]), graph(data.columns[2], conf)],
   };
+}
+
+function classicOption(data: SearchResult, conf: Config) {
+  return {
+    ...sharedOption(conf),
+    series: [
+      {
+        type: "funnel",
+        width: "80%",
+        min: 0,
+        max: 100,
+        minSize: "0%",
+        maxSize: "100%",
+        sort: "none",
+        funnelAlign: conf.funnelAlign,
+        gap: 2,
+        label: {
+          position: conf.labelPosition,
+          show: true,
+          rich: {
+            name: {
+              fontWeight: 700,
+              lineHeight: 24,
+            },
+          },
+        },
+        itemStyle: {
+          borderColor: "#fff",
+          borderWidth: 1,
+        },
+        data: data.columns[2].map((v, i) => {
+          return {
+            value: v,
+            label: { formatter: `{name|${data.columns[0][i]}}\n${data.columns[1][i]} (${v}%)` },
+          };
+        }),
+      },
+    ],
+  };
+}
+
+function option(data: SearchResult, conf: Config) {
+  return conf.funnelType == "classic" ? classicOption(data, conf) : alternateOption(data, conf);
 }
