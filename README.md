@@ -1,23 +1,24 @@
 # Funnel Chart
 
-A calendar with pie charts showing the distribution of different categories for each day.
+A funnel chart visualization app for Splunk supports which two types of charts: classic and hybrid. The hybrid type is inspired by [this article](https://smilganir.medium.com/funnel-chart-suggested-alternatives-f5411e3a60f5).
 
 ## Examples
 
 ```
-| gentimes start=12/15/22 end=1/15/23 increment=1m
-| eval _time=starttime
-| eval day=strftime(_time, "%a")
-| eval status=(random() % 5) + 1
-| eval status=case(status == 1, 200, status == 2, 200, status == 3, 300, status == 4, 400, status = 5, 500)
-| eval status=if(status==500 OR status==400, (random() % 5) + 1, status)
-| eval status=case(status == 1, 200, status == 2, 200, status == 3, 300, status == 4, 400, status = 5, 500, 1==1, status)
-| eval status=if(status==500 AND day!="Tue", (random() % 5) + 1, status)
-| eval status=case(status == 1, 200, status == 2, 200, status == 3, 300, status == 4, 400, status = 5, 500, 1==1, status)
-| timechart cont=f span=1d count by status
+| makeresults
+| eval data=split("Landing Page,1000,100-Product Page,900,90-Add to Cart,500,50-Checkout,200,20-Purchase,150,15", "-")
+| mvexpand data
+| eval step=mvindex(split(data, ","), 0), count=mvindex(split(data, ","), 1), percent=mvindex(split(data, ","), 2)
+| table step count percent
 ```
 
-![screenshot](/static/screenshot.png)
+## Classic
+
+![classic](/static/classic.png)
+
+## Hybrid
+
+![hybrid](/static/hybrid.png)
 
 ## License
 

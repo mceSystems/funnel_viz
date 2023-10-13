@@ -28,6 +28,18 @@ define(["api/SplunkVisualizationBase", "api/SplunkVisualizationUtils", "echarts"
     },
 
     // @ts-expect-error
+    onConfigChange: function (configChanges, _previousConfig) {
+      if (
+        Object.keys(configChanges).length == 1 &&
+        configChanges.hasOwnProperty("display.visualizations.custom.funnel_viz.funnel.funnelType")
+      ) {
+        echarts.getInstanceByDom(this.el).dispose();
+      }
+
+      this.invalidateFormatData();
+    },
+
+    // @ts-expect-error
     updateView: function (data, config) {
       if (!data.columns || data.columns.length === 0) {
         return this;
@@ -36,8 +48,6 @@ define(["api/SplunkVisualizationBase", "api/SplunkVisualizationUtils", "echarts"
       const c = this.initChart(this.el);
       const conf = new Config(config, SplunkVisualizationUtils.getCurrentTheme());
       const opt = option(data, conf);
-      console.log(opt);
-      console.log(data);
       c.setOption(opt);
     },
 
@@ -78,9 +88,12 @@ interface SearchResult {
 class Config {
   background: string;
   foreground: string;
-  funnelType: "classic" | "alternative";
+  gray: string;
+  funnelType: "classic" | "hybrid";
   funnelAlign: "left" | "center" | "right";
-  labelPosition: "left" | "inside" | "right";
+  labelPosition: "left" | "right";
+  classicWidth: number;
+  hybridWidth: number;
   itemSize: number;
   #colors = [
     "#2ec7c9",
@@ -109,24 +122,25 @@ class Config {
   constructor(c: any, mode: string) {
     this.background = mode === "dark" ? "#333" : "#fff";
     this.foreground = mode === "dark" ? "#fff" : "#333";
-    this.funnelType = c[`${this.#vizNamespace}.funnelType`] === "classic" ? "classic" : "alternative";
+    this.gray = mode === "dark" ? "#414445" : "#ddd";
+    this.funnelType = c[`${this.#vizNamespace}.funnelType`] === "classic" ? "classic" : "hybrid";
     this.funnelAlign = ["left", "center", "right"].includes(c[`${this.#vizNamespace}.funnelAlign`])
       ? c[`${this.#vizNamespace}.funnelAlign`]
-      : "left";
-    this.labelPosition = ["left", "inside", "right"].includes(c[`${this.#vizNamespace}.labelPosition`])
+      : "center";
+    this.labelPosition = ["left", "right"].includes(c[`${this.#vizNamespace}.labelPosition`])
       ? c[`${this.#vizNamespace}.labelPosition`]
       : "left";
-    this.itemSize = this.validateItemSize(c[`${this.#vizNamespace}.itemSize`]);
+    const isize = this.sanitizeNumber(c[`${this.#vizNamespace}.itemSize`]);
+    this.itemSize = isize !== false ? isize : 96;
+    const cw = this.sanitizeNumber(c[`${this.#vizNamespace}.classicWidth`]);
+    this.classicWidth = cw !== false ? cw : 300;
+    const hw = this.sanitizeNumber(c[`${this.#vizNamespace}.hybridWidth`]);
+    this.hybridWidth = hw !== false ? hw : 828;
     this.colors = c;
   }
 
-  sanitizeNumber(s: string): number | "" {
-    return !Number.isNaN(parseInt(s)) ? parseInt(s) : "";
-  }
-
-  validateItemSize(rad: string): number {
-    const d = this.sanitizeNumber(rad);
-    return d === "" ? 96 : d;
+  sanitizeNumber(s: string): number | false {
+    return !Number.isNaN(parseInt(s)) ? parseInt(s) : false;
   }
 
   isColor(hex: string) {
@@ -145,15 +159,14 @@ class Config {
     }
   }
 
-  get firstGridLeft() {
-    return this.itemSize / 2 + 48;
+  get firstGridWidth() {
+    return this.hybridWidth - 128;
   }
 }
 
 function bar(result: Result, conf: Config) {
   return {
     type: "bar",
-    // silent: true,
     zlevel: 1,
     colorBy: "data",
     barCategoryGap: "20%",
@@ -161,10 +174,9 @@ function bar(result: Result, conf: Config) {
     label: {
       position: "insideLeft",
       show: true,
-      // align: "left",
       distance: 16,
       verticalAlign: "middle",
-      formatter: "{name|{b}}\n{c}%",
+      formatter: "{name|{b}}\n{c}",
       rich: {
         name: {
           fontWeight: 700,
@@ -176,13 +188,13 @@ function bar(result: Result, conf: Config) {
   };
 }
 
-function area(result: Result) {
+function area(result: Result, conf: Config) {
   return {
     type: "line",
     silent: true,
     showSymbol: false,
     areaStyle: {
-      color: "#ddd",
+      color: conf.gray,
     },
     lineStyle: {
       width: 0,
@@ -204,15 +216,14 @@ function graph(result: Result, conf: Config) {
     xAxisIndex: 1,
     yAxisIndex: 1,
     symbolSize: conf.itemSize,
-    // silent: true,
     lineStyle: {
       width: 16,
-      color: "#ddd",
+      color: conf.gray,
     },
     data: result.map((x, i) => {
       return {
         value: 0,
-        label: { formatter: x, show: true, fontSize: 14, fontWeight: 700 },
+        label: { formatter: `${x}%`, show: true, fontSize: 14, fontWeight: 700 },
         itemStyle: { color: conf.colors[i % conf.colors.length] },
       };
     }),
@@ -240,16 +251,16 @@ function alternateOption(data: SearchResult, conf: Config) {
     ...sharedOption(conf),
     grid: [
       {
-        left: conf.firstGridLeft,
-        right: 32,
         bottom: 32,
         containLabel: true,
+        width: conf.firstGridWidth,
+        left: "center",
       },
       {
-        left: 32,
-        right: 32,
         bottom: 32,
         containLabel: true,
+        width: conf.hybridWidth,
+        left: "center",
       },
     ],
     xAxis: [
@@ -263,6 +274,7 @@ function alternateOption(data: SearchResult, conf: Config) {
         boundaryGap: [0, 0.01],
         gridIndex: 1,
         show: false,
+        offset: -40,
       },
     ],
     yAxis: [
@@ -280,7 +292,7 @@ function alternateOption(data: SearchResult, conf: Config) {
         data: data.columns[0],
       },
     ],
-    series: [bar(data.columns[1], conf), area(data.columns[1]), graph(data.columns[2], conf)],
+    series: [bar(data.columns[1], conf), area(data.columns[1], conf), graph(data.columns[2], conf)],
   };
 }
 
@@ -290,7 +302,8 @@ function classicOption(data: SearchResult, conf: Config) {
     series: [
       {
         type: "funnel",
-        width: "80%",
+        width: conf.classicWidth,
+        left: "center",
         min: 0,
         max: 100,
         minSize: "0%",
@@ -316,6 +329,7 @@ function classicOption(data: SearchResult, conf: Config) {
           return {
             value: v,
             label: { formatter: `{name|${data.columns[0][i]}}\n${data.columns[1][i]} (${v}%)` },
+            itemStyle: { borderWidth: 0 },
           };
         }),
       },

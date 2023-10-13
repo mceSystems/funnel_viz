@@ -2,6 +2,8 @@ display.visualizations.custom.funnel_viz.funnel.funnelType = <string>
 display.visualizations.custom.funnel_viz.funnel.funnelAlign = <string>
 display.visualizations.custom.funnel_viz.funnel.labelPosition = <string>
 display.visualizations.custom.funnel_viz.funnel.itemSize = <integer>
+display.visualizations.custom.funnel_viz.funnel.classicWidth = <integer>
+display.visualizations.custom.funnel_viz.funnel.hybrididth = <integer>
 
 display.visualizations.custom.funnel_viz.funnel.color1 = <string>
 display.visualizations.custom.funnel_viz.funnel.color2 = <string>
