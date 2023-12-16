@@ -1,6 +1,6 @@
 # Funnel Chart
 
-A funnel chart visualization app for Splunk supports which two types of charts: classic and hybrid. The hybrid type is inspired by [this article](https://smilganir.medium.com/funnel-chart-suggested-alternatives-f5411e3a60f5).
+A funnel chart visualization app for Splunk which supports two types of charts: classic and hybrid. The hybrid type is inspired by [this article](https://smilganir.medium.com/funnel-chart-suggested-alternatives-f5411e3a60f5).
 
 ## Examples
 
