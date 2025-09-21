@@ -1,10 +1,10 @@
 {
   "schemaVersion": "2.0.0",
   "info": {
-    "title": "Funnel",
+    "title": "Advanced Funnel Visualization",
     "id": {
       "group": null,
-      "name": "funnel_viz",
+      "name": "advanced_funnel_viz",
       "version": "1.0.0"
     },
     "author": [
@@ -15,7 +15,7 @@
       }
     ],
     "releaseDate": null,
-    "description": "Funnel visualization.",
+    "description": "Advanced funnel visualization with hybrid and classic display modes.",
     "classification": {
       "intendedAudience": null,
       "categories": [],

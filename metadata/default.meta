@@ -20,5 +20,5 @@ export = system
 access = read : [ * ], write : [ * ]
 export = system
 
-[visualizations/funnel]
+[visualizations/advanced_funnel]
 export = system
