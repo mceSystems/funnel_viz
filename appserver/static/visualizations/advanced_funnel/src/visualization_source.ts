@@ -12,7 +12,7 @@ define(["api/SplunkVisualizationBase", "api/SplunkVisualizationUtils", "echarts"
       this.chunk = 100;
       this.offset = 0;
       SplunkVisualizationBase.prototype.initialize.apply(this, arguments);
-      this.el.classList.add("vizviz-funnel-container");
+      this.el.classList.add("advanced-funnel-viz-container");
     },
 
     // @ts-expect-error
@@ -31,7 +31,7 @@ define(["api/SplunkVisualizationBase", "api/SplunkVisualizationUtils", "echarts"
     onConfigChange: function (configChanges, _previousConfig) {
       if (
         Object.keys(configChanges).length == 1 &&
-        configChanges.hasOwnProperty("display.visualizations.custom.funnel_viz.funnel.funnelType")
+        configChanges.hasOwnProperty("display.visualizations.custom.advanced_funnel_viz.advanced_funnel.funnelType")
       ) {
         echarts.getInstanceByDom(this.el).dispose();
       }
@@ -117,7 +117,7 @@ class Config {
     "#6f5553",
     "#c14089",
   ];
-  #vizNamespace = "display.visualizations.custom.funnel_viz.funnel";
+  #vizNamespace = "display.visualizations.custom.advanced_funnel_viz.advanced_funnel";
 
   constructor(c: any, mode: string) {
     this.background = mode === "dark" ? "#333" : "#fff";

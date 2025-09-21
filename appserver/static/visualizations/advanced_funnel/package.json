@@ -1,7 +1,7 @@
 {
-  "name": "funnel",
+  "name": "advanced-funnel-viz",
   "version": "1.0.0",
-  "description": "Funnel chart.",
+  "description": "Advanced funnel visualization with hybrid and classic display modes.",
   "main": "visualization.js",
   "scripts": {
     "_build": "$SPLUNK_HOME/bin/splunk cmd node ./node_modules/webpack/bin/webpack.js",
